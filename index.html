@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Khi editor & preprocessors</title>
+    <style>
+      button {
+        color:white;
+        background-color:#444444;
+        border-left: 2px #777777 solid;
+        border-top: 2px #777777 solid;
+        border-bottom: 2px #555555 solid;
+        border-right: 2px #555555 solid;
+      }
+      button:hover {
+        color:white;
+        background-color:#66666;
+        border-left: 2px #999999 solid;
+        border-top: 2px #999999 solid;
+        border-bottom: 2px #777777 solid;
+        border-right: 2px #777777 solid;
+      }
+    </style>
+    <script type="module">
+      import init, * as khi from "./khi.js";
+      init();
+      window.check_well_formed = khi.check_well_formed;
+      window.preprocess_latex = khi.preprocess_latex;
+      window.preprocess_html = khi.preprocess_html;
+    </script>
+    <script language="javascript" type="text/javascript" src="codemirror.js"></script>
+    <link rel="stylesheet" type="text/css" href="codemirror.css">
+    <script src="cm-modes/simple.js"></script>
+    <script src="cm-modes/xml.js"></script>
+    <script src="cm-modes/stex.js"></script>
+    <link rel="stylesheet" href="cm-styles/monokai.css"/>
+    <script type="text/javascript">
+      window.editor = "temp";
+      window.result = "temp";
+
+      // Paste in a HTML preprocessor example.
+      function htmlExample() {
+        result.setValue(
+`# Example of Khi HTML-preprocessor input.
+
+<@doctype> # @doctype is a preprocessor directive which inserts <!doctype html>.
+<+html> # <+tag> is an opening tag and <-tag> or <-> its closing tag.
+  <+head>
+    <+title>Hello world!<->
+    <+script src:script.js><->
+  <-head>
+  <+body>
+    <+h1 id:main-heading>Hello world!<->
+    <+p>Hello world!<-> # These two paragraph notations are equivalent.
+    <p>:{Hello world!}
+    <img src:frontpage.jpg>
+    <+div class:dark-background><+p>
+      This is a paragraph <br>
+      with a line break.
+      <+em class:italic-text>This text is italic.<->
+    <-><->
+    <colour>:{ # Dictionaries also compile to tags.
+      name: Teal;
+      hex: #008080;
+      description: Blue-green mix;
+    }
+  <-body>
+<-html>
+`);
+        result.setOption("mode", "simple");
+      }
+
+      // Preprocess UDL to HTML.
+      function processHtml() {
+        let inp = editor.getValue();
+        let out;
+        try {
+          out = preprocess_html(inp);
+        } catch (error) {
+          document.getElementById("alert").textContent = error;
+          return;
+        }
+        document.getElementById("alert").textContent = "";
+        result.setValue(out);
+        result.setOption("mode", "text/html");
+      }
+
+      // Paste in a LaTeX preprocessor example.
+      function latexExample() {
+        result.setValue(
+`# Example of Khi LaTeX-preprocessor input.
+
+<documentclass>:article
+
+<usepackage>:amsmath
+
+<addtolength>:<jot>:1em # Controls the line spacing in align*
+
+<begin>:document
+
+<section>:Equations
+
+  # Define a sum-range command.
+  <@def>:<SumRn>:4:{ # @def is a preprocessor directive which handles the options in \\newcommand.
+    <sum>_{#1}^{#2\`:#3} #4
+  }
+
+  <begin>:align* [
+    | <SumRn>:k:0:100:k                                |
+    | = 0 + 1 + 2 + <dots> + 99 + 100                  |
+    | = (0 + 100) + (1 + 99) + <dots> (49 + 51) + 50   |
+    | = 5050                                           |
+  ] <end>:align*
+
+  <begin>:align* [
+    | <SumRn>:k:0:n:k                    |
+    | = 0 + 1 + 2 + <dots> + (n - 1) + n |
+    | = n <cfrac>:n:2 + <cfrac>:n:2      |
+    | = <cfrac>:n^2:2 + <cfrac>:n:2      |
+    | = n <cdot> <cfrac>:{n + 1}:2       |
+  ] <end>:align*
+
+<section>:Matrices
+
+  <begin>:math
+    <mathbf>:X = <begin>:bmatrix [
+      |1|0|0|
+      |0|1|0|
+      |0|0|1|
+    ] <end>:bmatrix
+    <n>
+    <mathbf>:X = <begin>:bmatrix [1|?|?; ?|1|?; ?|?|1] <end>:bmatrix
+  <end>:math
+
+<end>:document
+
+`);
+        result.setOption("mode", "simple");
+      }
+
+      // Preprocess UDL to LaTeX.
+      function processLatex() {
+        let inp = editor.getValue();
+        let out;
+        try {
+          out = preprocess_latex(inp);
+        } catch (error) {
+          document.getElementById("alert").textContent = error;
+          return;
+        }
+        document.getElementById("alert").textContent = "";
+        result.setValue(out);
+        result.setOption("mode", "text/x-stex");
+      }
+
+      function checkWellFormed() {
+        let inp = editor.getValue();
+        try {
+          check_well_formed(inp);
+          document.getElementById("alert").textContent = "Well formed";
+        } catch (error) {
+          document.getElementById("alert").textContent = error;
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        // Temporary syntax highlighting. TODO: Write a lexer highlighter.
+        CodeMirror.defineSimpleMode("simple", {
+          start: [
+            { regex: /#{2,}.*$/, token: "comment" },
+            { regex: /#{1}\s+.*$/, token: "comment" },
+            { regex: /<\+{1}|<\-{1}/, token: "tag" },
+            { regex: /<{1}|>{1}/, token: "tag" },
+            { regex: /\{{1}|\}{1}/, token: "tag" },
+            { regex: /\{|\}|\[|\]|\(|\)/, token: "bracket" },
+            { regex: /^:{2,}/, token: "string" },
+            { regex: /^:{1}/, token: "tag" },
+            { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" }
+          ],
+          // The meta property contains global information about the mode. It
+          // can contain properties like lineComment, which are supported by
+          // all modes, and also directives like dontIndentStates, which are
+          // specific to simple modes.
+          meta: {
+            lineComment: "#"
+          }
+        });
+        // Set up editor area.
+        editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+          lineNumbers: true,
+          mode: 'simple',
+          matchBrackets: true,
+          theme: "monokai"
+        });
+        editor.setSize("100%", "100%");
+        editor.setOption("mode", "simple");
+        // Set up preprocessor result area.
+        result = CodeMirror.fromTextArea(document.getElementById("preprocess"), {
+          lineNumbers: true,
+          lineWrapping: true,
+          matchBrackets: true,
+          readOnly: true,
+          theme: "monokai"
+        });
+        result.setSize("100%", "100%");
+      });
+    </script>
+  </head>
+  <body style="height: 100%; display:flex; flex-direction:column; width:100%; background-color:#333333">
+    <h1 style="color:#dddddd">Khi editor & preprocessor</h1>
+    <div>
+      <b>Khi</b>
+      <button onclick="checkWellFormed()">Well-formed?</button>
+      <span style="color:white">&middot;</span>
+      <b>XML/HTML</b>
+      <button onclick="processHtml()">Preprocess</button>
+      <button onclick="htmlExample()">Example</button>
+      <span style="color:white">&middot;</span>
+      <b>LaTeX</b>
+      <button onclick="processLatex()">Preprocess</button>
+      <button onclick="latexExample()">Example</button>
+    </div>
+    <div id="alert" style="color:white; padding-top: 0.5em; padding-bottom:0.5em">
+
+    </div>
+    <div style="max-width: 99%; min-width:99%; width:99%; height: 100%; display: grid; grid-template-columns: 2fr 2fr; align-items:stretch;border:2px dotted grey;">
+      <div style="resize:horizontal; width: 100%; height: 100%;">
+        <textarea id="code" name="code" style=""></textarea>
+      </div>
+      <div style="resize:horizontal; width: 100%; height: 100%;">
+        <textarea id="preprocess" name="preprocess"></textarea>
+      </div>
+    </div>
+  </body>
+</html>
