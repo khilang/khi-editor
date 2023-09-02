@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="Utf-8">
     <title>Khi editor & preprocessors</title>
     <style>
       button {
@@ -37,35 +38,18 @@
       window.editor = "temp";
       window.result = "temp";
 
-      // Paste in a HTML preprocessor example.
-      function htmlExample() {
-        result.setValue(
-`# Example of Khi HTML-preprocessor input.
+      function loadExample(path) {
+        return fetch(path).then(response => response.text());
+      }
 
-<@doctype> # @doctype is a preprocessor directive which inserts <!doctype html>.
-<+html> # <+tag> is an opening tag and <-tag> or <-> its closing tag.
-  <+head>
-    <+title>Hello world!<->
-    <+script src:script.js><->
-  <-head>
-  <+body>
-    <+h1 id:main-heading>Hello world!<->
-    <+p>Hello world!<-> # These two paragraph notations are equivalent.
-    <p>:{Hello world!}
-    <img src:frontpage.jpg>
-    <+div class:dark-background><+p>
-      This is a paragraph <br>
-      with a line break.
-      <+em class:italic-text>This text is italic.<->
-    <-><->
-    <colour>:{ # Dictionaries also compile to tags.
-      name: Teal;
-      hex: #008080;
-      description: Blue-green mix;
-    }
-  <-body>
-<-html>
-`);
+      // Paste in a HTML preprocessor example.
+      async function htmlExample() {
+        result.setValue(await loadExample("examples/frontpage.html.khi"));
+        result.setOption("mode", "simple");
+      }
+
+      async function xmlExample() { // XML example
+        result.setValue(await loadExample("examples/colours.xml.khi"));
         result.setOption("mode", "simple");
       }
 
@@ -76,64 +60,19 @@
         try {
           out = preprocess_html(inp);
         } catch (error) {
+          document.getElementById("alert").hidden = false;
           document.getElementById("alert").textContent = error;
           return;
         }
+        document.getElementById("alert").hidden = true;
         document.getElementById("alert").textContent = "";
         result.setValue(out);
         result.setOption("mode", "text/html");
       }
 
       // Paste in a LaTeX preprocessor example.
-      function latexExample() {
-        result.setValue(
-`# Example of Khi LaTeX-preprocessor input.
-
-<documentclass>:article
-
-<usepackage>:amsmath
-
-<addtolength>:<jot>:1em # Controls the line spacing in align*
-
-<begin>:document
-
-<section>:Equations
-
-  # Define a sum-range command.
-  <@def>:<SumRn>:4:{ # @def is a preprocessor directive which handles the options in \\newcommand.
-    <sum>_{#1}^{#2\`:#3} #4
-  }
-
-  <begin>:align* [
-    | <SumRn>:k:0:100:k                                |
-    | = 0 + 1 + 2 + <dots> + 99 + 100                  |
-    | = (0 + 100) + (1 + 99) + <dots> (49 + 51) + 50   |
-    | = 5050                                           |
-  ] <end>:align*
-
-  <begin>:align* [
-    | <SumRn>:k:0:n:k                    |
-    | = 0 + 1 + 2 + <dots> + (n - 1) + n |
-    | = n <cfrac>:n:2 + <cfrac>:n:2      |
-    | = <cfrac>:n^2:2 + <cfrac>:n:2      |
-    | = n <cdot> <cfrac>:{n + 1}:2       |
-  ] <end>:align*
-
-<section>:Matrices
-
-  <begin>:math
-    <mathbf>:X = <begin>:bmatrix [
-      |1|0|0|
-      |0|1|0|
-      |0|0|1|
-    ] <end>:bmatrix
-    <n>
-    <mathbf>:X = <begin>:bmatrix [1|?|?; ?|1|?; ?|?|1] <end>:bmatrix
-  <end>:math
-
-<end>:document
-
-`);
+      async function latexExample() {
+        result.setValue(await loadExample("examples/equations.tex.khi"));
         result.setOption("mode", "simple");
       }
 
@@ -144,9 +83,11 @@
         try {
           out = preprocess_latex(inp);
         } catch (error) {
+          document.getElementById("alert").hidden = false;
           document.getElementById("alert").textContent = error;
           return;
         }
+        document.getElementById("alert").hidden = true;
         document.getElementById("alert").textContent = "";
         result.setValue(out);
         result.setOption("mode", "text/x-stex");
@@ -156,8 +97,10 @@
         let inp = editor.getValue();
         try {
           check_well_formed(inp);
+          document.getElementById("alert").hidden = false;
           document.getElementById("alert").textContent = "Well formed";
         } catch (error) {
+          document.getElementById("alert").hidden = false;
           document.getElementById("alert").textContent = error;
         }
       }
@@ -205,29 +148,37 @@
       });
     </script>
   </head>
-  <body style="height: 100%; display:flex; flex-direction:column; width:100%; background-color:#333333">
-    <h1 style="color:#dddddd">Khi editor & preprocessor</h1>
-    <div>
-      <b>Khi</b>
-      <button onclick="checkWellFormed()">Well-formed?</button>
-      <span style="color:white">&middot;</span>
-      <b>XML/HTML</b>
-      <button onclick="processHtml()">Preprocess</button>
-      <button onclick="htmlExample()">Example</button>
-      <span style="color:white">&middot;</span>
-      <b>LaTeX</b>
-      <button onclick="processLatex()">Preprocess</button>
-      <button onclick="latexExample()">Example</button>
-    </div>
-    <div id="alert" style="color:white; padding-top: 0.5em; padding-bottom:0.5em">
-
-    </div>
-    <div style="max-width: 99%; min-width:99%; width:99%; height: 100%; display: grid; grid-template-columns: 2fr 2fr; align-items:stretch;border:2px dotted grey;">
-      <div style="resize:horizontal; width: 100%; height: 100%;">
-        <textarea id="code" name="code" style=""></textarea>
+  <body style="height: 1fr; display:flex; flex-direction:column; width:1fr; background-color:#383838">
+    <div style="background-color:#444444">
+      <h1 style="color:#dddddd; margin: 5pt; padding: 3px;">Khi editor & preprocessor</h1>
+      <div style="display: flex; flex-direction: right; margin: 3px; padding: 3px;">
+        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #333333;">
+          <b>Khi</b>
+          <a href="https://github.com/khilang/khilang/blob/master/reference.md" target="_blank"><button style="border: 2px solid #333333; margin-left: 0.25em;">Reference🡥</button></a>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="checkWellFormed()">Well-formed?</button>
+        </div>
+        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #333333;">
+          <b>XML/HTML</b>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="processHtml()">Preprocess</button>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="htmlExample()">HTML Example</button>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="xmlExample()">XML Example</button>
+        </div>
+        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #333333;">
+          <b>LaTeX</b>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="processLatex()">Preprocess</button>
+          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="latexExample()">Example</button>
+        </div>
       </div>
-      <div style="resize:horizontal; width: 100%; height: 100%;">
-        <textarea id="preprocess" name="preprocess"></textarea>
+      <div id="alert" style="color:white; padding: 0.5em; border:2px dotted grey; border-bottom:0px;" hidden>
+
+      </div>
+      <div style="max-width: 1fr; min-width:1fr; width:1fr; height: 1fr; display: grid; grid-template-columns: 2fr 2fr; align-items:stretch;border:2px dotted grey;">
+        <div style="resize:horizontal; width: 100%; height: 100%;">
+          <textarea id="code" name="code" style=""></textarea>
+        </div>
+        <div style="resize:horizontal; width: 1fr; height: 1fr;border-left:2px dotted grey;">
+          <textarea id="preprocess" name="preprocess"></textarea>
+        </div>
       </div>
     </div>
   </body>
