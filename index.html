@@ -33,6 +33,7 @@
     <script src="cm-modes/simple.js"></script>
     <script src="cm-modes/xml.js"></script>
     <script src="cm-modes/stex.js"></script>
+    <script src="cm-modes/khi.js"></script>
     <link rel="stylesheet" href="cm-styles/monokai.css"/>
     <script type="text/javascript">
       window.editor = "temp";
@@ -45,12 +46,12 @@
       // Paste in a HTML preprocessor example.
       async function htmlExample() {
         result.setValue(await loadExample("examples/frontpage.html.khi"));
-        result.setOption("mode", "simple");
+        result.setOption("mode", "application/khi");
       }
 
       async function xmlExample() { // XML example
         result.setValue(await loadExample("examples/colours.xml.khi"));
-        result.setOption("mode", "simple");
+        result.setOption("mode", "application/khi");
       }
 
       // Preprocess UDL to HTML.
@@ -73,7 +74,7 @@
       // Paste in a LaTeX preprocessor example.
       async function latexExample() {
         result.setValue(await loadExample("examples/equations.tex.khi"));
-        result.setOption("mode", "simple");
+        result.setOption("mode", "application/khi");
       }
 
       // Preprocess UDL to LaTeX.
@@ -130,12 +131,12 @@
         // Set up editor area.
         editor = CodeMirror.fromTextArea(document.getElementById("code"), {
           lineNumbers: true,
-          mode: 'simple',
+          mode: 'application/khi',
           matchBrackets: true,
           theme: "monokai"
         });
         editor.setSize("100%", "100%");
-        editor.setOption("mode", "simple");
+        editor.setOption("mode", "application/khi");
         // Set up preprocessor result area.
         result = CodeMirror.fromTextArea(document.getElementById("preprocess"), {
           lineNumbers: true,
