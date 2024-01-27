@@ -1,9 +1,12 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="Utf-8">
     <title>Khi editor & preprocessors</title>
     <style>
+      body {
+        font-family: sans-serif;
+      }
       button {
         color:white;
         background-color:#444444;
@@ -30,10 +33,10 @@
     </script>
     <script language="javascript" type="text/javascript" src="codemirror.js"></script>
     <link rel="stylesheet" type="text/css" href="codemirror.css">
-    <script src="cm-modes/simple.js"></script>
     <script src="cm-modes/xml.js"></script>
     <script src="cm-modes/stex.js"></script>
     <script src="cm-modes/khi.js"></script>
+    <link rel="stylesheet" href="cm-styles/khidark.css"/>
     <link rel="stylesheet" href="cm-styles/monokai.css"/>
     <script type="text/javascript">
       window.editor = "temp";
@@ -47,11 +50,13 @@
       async function htmlExample() {
         result.setValue(await loadExample("examples/frontpage.html.khi"));
         result.setOption("mode", "application/khi");
+        result.setOption("theme", "khidark");
       }
 
       async function xmlExample() { // XML example
-        result.setValue(await loadExample("examples/colours.xml.khi"));
+        result.setValue(await loadExample("examples/fruits.xml.khi"));
         result.setOption("mode", "application/khi");
+        result.setOption("theme", "khidark");
       }
 
       // Preprocess UDL to HTML.
@@ -69,12 +74,14 @@
         document.getElementById("alert").textContent = "";
         result.setValue(out);
         result.setOption("mode", "text/html");
+        result.setOption("theme", "monokai");
       }
 
       // Paste in a LaTeX preprocessor example.
       async function latexExample() {
         result.setValue(await loadExample("examples/equations.tex.khi"));
         result.setOption("mode", "application/khi");
+        result.setOption("theme", "khidark");
       }
 
       // Preprocess UDL to LaTeX.
@@ -92,6 +99,7 @@
         document.getElementById("alert").textContent = "";
         result.setValue(out);
         result.setOption("mode", "text/x-stex");
+        result.setOption("theme", "monokai");
       }
 
       function checkWellFormed() {
@@ -107,33 +115,12 @@
       }
 
       window.addEventListener('DOMContentLoaded', () => {
-        // Temporary syntax highlighting. TODO: Write a lexer highlighter.
-        CodeMirror.defineSimpleMode("simple", {
-          start: [
-            { regex: /#{2,}.*$/, token: "comment" },
-            { regex: /#{1}\s+.*$/, token: "comment" },
-            { regex: /<\+{1}|<\-{1}/, token: "tag" },
-            { regex: /<{1}|>{1}/, token: "tag" },
-            { regex: /\{{1}|\}{1}/, token: "tag" },
-            { regex: /\{|\}|\[|\]|\(|\)/, token: "bracket" },
-            { regex: /^:{2,}/, token: "string" },
-            { regex: /^:{1}/, token: "tag" },
-            { regex: /0x[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number" }
-          ],
-          // The meta property contains global information about the mode. It
-          // can contain properties like lineComment, which are supported by
-          // all modes, and also directives like dontIndentStates, which are
-          // specific to simple modes.
-          meta: {
-            lineComment: "#"
-          }
-        });
         // Set up editor area.
         editor = CodeMirror.fromTextArea(document.getElementById("code"), {
           lineNumbers: true,
           mode: 'application/khi',
           matchBrackets: true,
-          theme: "monokai"
+          theme: "khidark"
         });
         editor.setSize("100%", "100%");
         editor.setOption("mode", "application/khi");
@@ -143,7 +130,7 @@
           lineWrapping: true,
           matchBrackets: true,
           readOnly: true,
-          theme: "monokai"
+          theme: "khidark"
         });
         result.setSize("100%", "100%");
       });
@@ -152,7 +139,7 @@
   <body style="height: 1fr; display:flex; flex-direction:column; width:1fr; background-color:#383838">
     <div style="background-color:#444444">
       <h1 style="color:#dddddd; margin: 5pt; padding: 3px;">Khi editor & preprocessor</h1>
-      <div style="display: flex; flex-direction: row; margin: 3px; padding: 3px;">
+      <div style="display: flex; flex-direction: row; margin: 3px; padding: 3px; flex-wrap: wrap">
         <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #222222;">
           <b>Khi</b>
           <a href="https://github.com/khilang/khilang/blob/master/reference.md" target="_blank"><button style="border: 2px solid #333333; margin-left: 0.25em;">Reference🡥</button></a>
