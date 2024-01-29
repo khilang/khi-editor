@@ -2,28 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="Utf-8">
-    <title>Khi editor & preprocessors</title>
-    <style>
-      body {
-        font-family: sans-serif;
-      }
-      button {
-        color:white;
-        background-color:#444444;
-        border-left: 2px #777777 solid;
-        border-top: 2px #777777 solid;
-        border-bottom: 2px #555555 solid;
-        border-right: 2px #555555 solid;
-      }
-      button:hover {
-        color:white;
-        background-color:#666666;
-        border-left: 2px #999999 solid;
-        border-top: 2px #999999 solid;
-        border-bottom: 2px #777777 solid;
-        border-right: 2px #777777 solid;
-      }
-    </style>
+    <title>Khi editor & preprocessor</title>
     <script type="module">
       import init, * as khi from "./khi.js";
       init();
@@ -135,26 +114,67 @@
         result.setSize("100%", "100%");
       });
     </script>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      button {
+        color:white;
+        border: 2px #333333 solid;
+        margin-left: 0.10em;
+        font-size: 0.66em;
+        font-weight: bold;
+      }
+      button:hover {
+        filter: brightness(125%);
+      }
+      .bt1 {
+        background-color: #7F5200;
+      }
+      .bt2 {
+        background-color:#444444;
+      }
+      .cmdline {
+        margin: 3px;
+        padding: 3px;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .cmdbox {
+        background-color:#555555;
+        color:#dddddd;
+        margin: 0.25em;
+        padding: 0.25em;
+        border: 2px solid #222222;
+        display: flex;
+        flex-direction: row;
+        gap: 0.25em;
+        align-items: center;
+      }
+    </style>
   </head>
   <body style="height: 1fr; display:flex; flex-direction:column; width:1fr; background-color:#383838">
     <div style="background-color:#444444">
       <h1 style="color:#dddddd; margin: 5pt; padding: 3px;">Khi editor & preprocessor</h1>
-      <div style="display: flex; flex-direction: row; margin: 3px; padding: 3px; flex-wrap: wrap">
-        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #222222;">
+      <div class="cmdline">
+        <div class="cmdbox">
           <b>Khi</b>
-          <a href="https://github.com/khilang/khilang/blob/master/reference.md" target="_blank"><button style="border: 2px solid #333333; margin-left: 0.25em;">Reference🡥</button></a>
-          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="checkWellFormed()">Well-formed?</button>
+          <a href="https://github.com/khilang/khilang/blob/master/reference.md" target="_blank"><button class="bt2">Reference🡥</button></a>
+          <button class="bt2" onclick="checkWellFormed()">Well-formed?</button>
         </div>
-        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #222222;">
+        <div class="cmdbox">
           <b>XML/HTML</b>
-          <button style="border: 2px solid #333333; margin-left: 0.25em; background-color: #7F5200;" onclick="processHtml()">Preprocess</button>
-          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="htmlExample()">HTML Example</button>
-          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="xmlExample()">XML Example</button>
+          <a href="https://github.com/khilang/khi.rs/blob/master/src/html/README.md" target="_blank"><button class="bt2">Reference🡥</button></a>
+          <button class="bt1" onclick="processHtml()">▶ Preprocess</button>
+          <button class="bt2" onclick="htmlExample()">HTML Example</button>
+          <button class="bt2" onclick="xmlExample()">XML Example</button>
         </div>
-        <div style="background-color:#555555; color:#dddddd; margin: 0.25em; padding: 0.25em; border: 2px solid #222222;">
+        <div class="cmdbox">
           <b>LaTeX</b>
-          <button style="border: 2px solid #333333; margin-left: 0.25em; background-color: #7F5200;" onclick="processLatex()">Preprocess</button>
-          <button style="border: 2px solid #333333; margin-left: 0.25em;" onclick="latexExample()">Example</button>
+          <a href="https://github.com/khilang/khi.rs/blob/master/src/tex/README.md" target="_blank"><button class="bt2">Reference🡥</button></a>
+          <button class="bt1" onclick="processLatex()">▶ Preprocess</button>
+          <button class="bt2" onclick="latexExample()">Example</button>
         </div>
       </div>
       <div id="alert" style="color:white; padding: 0.5em; border:2px dotted grey; border-bottom:0px;" hidden>

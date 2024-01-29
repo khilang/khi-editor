@@ -441,7 +441,7 @@
             } else if (t === CLASS_LEFT_SQUARE) {
               pushStack(state, {mode: STATE_SQUARE_OPEN});
             } else if (t === CLASS_LEFT_ANGLE) {
-              pushStack(state, {mode: STATE_TAG_OPEN});
+              pushStack(state, {mode: STATE_TAG_OPEN, argument: false});
             } else if (t === CLASS_TILDE) {
               stream.next();
               return STYLE_OPERATOR;
@@ -783,7 +783,7 @@
               if (stream.match(/<[a-zA-Z0-9_-]*!\s+/, false) || stream.match(/<[a-zA-Z0-9_-]*!>/, false)) { // TODO: Improve this part. Highlights tags ending in ! differently.
                 macro = true;
               }
-              replaceStack(state, {mode: STATE_TAG_NAME, macro: macro});
+              replaceStack(state, {mode: STATE_TAG_NAME, macro: macro, argument: head.argument});
               stream.next();
               return macro ? STYLE_MACRO : STYLE_TAG;
             } else {
@@ -797,7 +797,7 @@
             } else if (t === CLASS_COMMENT_HASH) {
               pushStack(state, {mode: STATE_COMMENT});
             } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_WORD, style: head.macro ? STYLE_MACRO : STYLE_TAG});
             } else {
               pushStack(state, {mode: STATE_ERROR});
@@ -810,44 +810,44 @@
             } else if (t === CLASS_COMMENT_HASH) {
               pushStack(state, {mode: STATE_COMMENT});
             } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-              replaceStack(state, {mode: STATE_TAG_COLON, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_COLON, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_WORD, style: STYLE_ATTRIBUTE});
             } else {
-              replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument});
             }
           } else if (mode === STATE_TAG_COLON) {
             // Expect whitespace or colon, otherwise end.
             let t = classifyCharacter(stream);
             if (t === CLASS_WHITESPACE) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_WHITESPACE});
             } else if (t === CLASS_COMMENT_HASH) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_COMMENT});
             } else if (t === CLASS_COLON) {
-              replaceStack(state, {mode: STATE_TAG_VALUE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_VALUE, macro: head.macro, argument: head.argument});
               stream.next();
               return head.macro ? STYLE_ATTRIBUTE : STYLE_ATTRIBUTE;
             } else {
-              replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument});
             }
           } else if (mode === STATE_TAG_VALUE) {
             // Expect attribute value.
             let t = classifyCharacter(stream);
             if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_WORD, style: STYLE_ATTRIBUTE_VALUE});
             } else if (t === CLASS_QUOTATION_MARK) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_QUOTATION_OPEN});
             } else if (t === CLASS_LEFT_ANGLE_HASH) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
             } else if (t === CLASS_LEFT_BRACKET) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_BRACKET_OPEN});
             } else if (t === CLASS_LEFT_SQUARE) {
-              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro});
+              replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_SQUARE_OPEN});
             } else {
               pushStack(state, {mode: STATE_ERROR});
@@ -860,7 +860,11 @@
             } else if (t === CLASS_COMMENT_HASH) {
               pushStack(state, {mode: STATE_COMMENT});
             } else if (t === CLASS_RIGHT_ANGLE) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              if (!head.argument) {
+                replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
+              } else {
+                popStack(state);
+              }
               stream.next();
               return head.macro ? STYLE_MACRO : STYLE_TAG;
             } else {
@@ -870,10 +874,10 @@
             // Expect colon, otherwise end.
             let t = classifyCharacter(stream);
             if (t === CLASS_COLON) {
-              replaceStack(state, {mode: STATE_PATTERN_ARGUMENT});
+              replaceStack(state, {mode: STATE_PATTERN_ARGUMENT, macro: head.macro});
               stream.next();
               if (stream.eol()) pushStack(state, {mode: STATE_ERROR});
-              return STYLE_ARGUMENT_COLON;
+              return head.macro ? STYLE_MACRO : STYLE_ARGUMENT_COLON;
             } else {
               popStack(state);
             }
@@ -881,22 +885,23 @@
             // Expect argument.
             let t = classifyCharacter(stream);
             if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
               pushStack(state, {mode: STATE_WORD, style: STYLE_WORD_ARGUMENT});
             } else if (t === CLASS_QUOTATION_MARK) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
               pushStack(state, {mode: STATE_QUOTATION_OPEN});
             } else if (t === CLASS_LEFT_ANGLE_HASH) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
               pushStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
             } else if (t === CLASS_LEFT_BRACKET) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
               pushStack(state, {mode: STATE_BRACKET_OPEN});
             } else if (t === CLASS_LEFT_SQUARE) {
-              replaceStack(state, {mode: STATE_PATTERN_COLON});
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
               pushStack(state, {mode: STATE_SQUARE_OPEN});
             } else if (t === CLASS_LEFT_ANGLE) {
-              replaceStack(state, {mode: STATE_TAG_OPEN}); // TODO Maybe?
+              replaceStack(state, {mode: STATE_PATTERN_COLON, macro: head.macro});
+              pushStack(state, {mode: STATE_TAG_OPEN, argument: true});
             } else if (t === CLASS_DIAMOND) {
               replaceStack(state, {mode: STATE_PATTERN_COMPOSE});
               stream.next();
@@ -909,7 +914,7 @@
             // Expect colon.
             let t = classifyCharacter(stream);
             if (t === CLASS_COLON) {
-              replaceStack(state, {mode: STATE_TAG_OPEN}); // TODO Maybe?
+              replaceStack(state, {mode: STATE_TAG_OPEN, argument: false});
               stream.next();
               return STYLE_ARGUMENT_COLON;
             } else {
