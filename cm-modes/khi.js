@@ -785,24 +785,23 @@
               }
               replaceStack(state, {mode: STATE_TAG_NAME, macro: macro, argument: head.argument});
               stream.next();
+              if (stream.eol()) {
+                pushStack(state, {mode: STATE_ERROR});
+              }
               return macro ? STYLE_MACRO : STYLE_TAG;
             } else {
               pushStack(state, {mode: STATE_ERROR});
             }
           } else if (mode === STATE_TAG_NAME) {
-            // Skip whitespace. Expect command.
+            // Expect name.
             let t = classifyCharacter(stream);
-            if (t === CLASS_WHITESPACE) {
-              pushStack(state, {mode: STATE_WHITESPACE});
-            } else if (t === CLASS_COMMENT_HASH) {
-              pushStack(state, {mode: STATE_COMMENT});
-            } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
+            if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
               replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
               pushStack(state, {mode: STATE_WORD, style: head.macro ? STYLE_MACRO : STYLE_TAG});
             } else {
               pushStack(state, {mode: STATE_ERROR});
             }
-          } else if (mode === STATE_TAG_ATTRIBUTE) {
+          } else if (mode === STATE_TAG_ATTRIBUTE) { // TODO: Fix whitespace not allowed in tag production "<"name">"
             // Skip whitespace. Expect attribute, otherwise end.
             let t = classifyCharacter(stream);
             if (t === CLASS_WHITESPACE) {
