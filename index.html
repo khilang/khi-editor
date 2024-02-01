@@ -112,7 +112,17 @@
           theme: "khidark"
         });
         result.setSize("100%", "100%");
+
+        editor.on("change", (e) => {
+          let value = e.getValue();
+          localStorage.setItem("content", value);
+        });
+
+        let content = localStorage.getItem("content");
+        editor.setValue(content);
+
       });
+
     </script>
     <style>
       body {
