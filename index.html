@@ -6,7 +6,9 @@
     <script type="module">
       import init, * as khi from "./khi.js";
       init();
-      window.check_well_formed = khi.check_well_formed;
+      window.check_well_formed_expression = khi.check_well_formed_expression;
+      window.check_well_formed_dictionary = khi.check_well_formed_dictionary;
+      window.check_well_formed_table = khi.check_well_formed_table;
       window.preprocess_latex = khi.preprocess_latex;
       window.preprocess_html = khi.preprocess_html;
     </script>
@@ -18,6 +20,9 @@
     <link rel="stylesheet" href="cm-styles/khidark.css"/>
     <link rel="stylesheet" href="cm-styles/monokai.css"/>
     <script type="text/javascript">
+
+      let mode = "expression";
+
       window.editor = "temp";
       window.result = "temp";
 
@@ -63,6 +68,20 @@
         result.setOption("theme", "khidark");
       }
 
+      async function writeExample(path, form) {
+        result.setValue(await loadExample(path));
+        result.setOption("mode", form);
+        result.setOption("theme", "khidark");
+        document.getElementById("alert").hidden = false;
+        let f = "Expression";
+        if (form === "application/khi-dictionary") {
+          f = "Dictionary";
+        } else if (form === "application/khi-table") {
+          f = "Table";
+        }
+        document.getElementById("alert").textContent = "Wrote example. Example mode: " + f;
+      }
+
       // Preprocess UDL to LaTeX.
       function processLatex() {
         let inp = editor.getValue();
@@ -83,13 +102,51 @@
 
       function checkWellFormed() {
         let inp = editor.getValue();
-        try {
-          check_well_formed(inp);
-          document.getElementById("alert").hidden = false;
-          document.getElementById("alert").textContent = "Well formed";
-        } catch (error) {
-          document.getElementById("alert").hidden = false;
-          document.getElementById("alert").textContent = error;
+        if (mode === "dictionary") {
+          try {
+            check_well_formed_dictionary(inp);
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = "Well formed dictionary";
+          } catch (error) {
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = error;
+          }
+        } else if (mode === "table") {
+          try {
+            check_well_formed_table(inp);
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = "Well formed table";
+          } catch (error) {
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = error;
+          }
+        } else {
+          try {
+            check_well_formed_expression(inp);
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = "Well formed expression";
+          } catch (error) {
+            document.getElementById("alert").hidden = false;
+            document.getElementById("alert").textContent = error;
+          }
+        }
+      }
+
+      function setMode(m) {
+        mode = m;
+        localStorage.setItem("mode", mode);
+        document.getElementById("b-dc").classList.remove("orangeborder");
+        document.getElementById("b-tb").classList.remove("orangeborder");
+        document.getElementById("b-ex").classList.remove("orangeborder");
+        if (mode === "dictionary") {
+          document.getElementById("b-dc").classList.add("orangeborder");
+          editor.setOption("mode", "application/khi-dictionary");
+        } else if (mode === "table") {
+          document.getElementById("b-tb").classList.add("orangeborder");
+          editor.setOption("mode", "application/khi-table");
+        } else {
+          document.getElementById("b-ex").classList.add("orangeborder");
+          editor.setOption("mode", "application/khi-expression");
         }
       }
 
@@ -119,9 +176,27 @@
         });
 
         let content = localStorage.getItem("content");
-        editor.setValue(content);
+        if (content !== null) {
+          editor.setValue(content);
+          setMode(localStorage.getItem("mode"));
+        }
 
       });
+
+      function expand(a) {
+        if (a.parentElement.classList.contains("hidec")) {
+          a.parentElement.classList.remove("hidec");
+        } else {
+          a.parentElement.classList.add("hidec");
+        }
+      }
+
+      function highlightborderx(a) {
+        for (let e of a.parentElement.children) {
+          e.classList.remove("borderhighlight");
+        }
+        a.classList.add("borderhighlight");
+      }
 
     </script>
     <style>
@@ -134,15 +209,18 @@
         margin-left: 0.10em;
         font-size: 0.66em;
         font-weight: bold;
+        cursor: pointer;
       }
       button:hover {
         filter: brightness(125%);
       }
       .bt1 {
         background-color: #7F5200;
+        height: 20px;
       }
       .bt2 {
         background-color:#444444;
+        height: 20px;
       }
       .cmdline {
         margin: 3px;
@@ -161,6 +239,28 @@
         flex-direction: row;
         gap: 0.25em;
         align-items: center;
+        height: 18px;
+      }
+      .altc > .bt2:nth-of-type(even) {
+        background-color:#5a5a5a;
+      }
+      .orlborder {
+        border-color: #7e786b;
+      }
+      .orangeborder {
+        border-color: #dca43b;
+      }
+      .hidec > button, .hidec > a {
+        display: none;
+      }
+      .htx {
+        font-size: 0.80em;
+        cursor: pointer;
+        margin-left: 5px;
+        margin-right: 5px;
+      }
+      .borderhighlight {
+        border-color: #7e786b;
       }
     </style>
   </head>
@@ -169,25 +269,42 @@
       <h1 style="color:#dddddd; margin: 5pt; padding: 3px;">Khi editor & preprocessor</h1>
       <div class="cmdline">
         <div class="cmdbox">
-          <b>Khi</b>
+          <b class="htx" onclick="expand(this)">Khi</b>
           <a href="https://github.com/khilang/khilang/blob/master/reference.md" target="_blank"><button class="bt2">Reference🡥</button></a>
+          <button id="b-ex" class="bt2 orlborder" onclick="setMode('expression')">Expression</button>
+          <button id="b-dc" class="bt2 orlborder" onclick="setMode('dictionary')">Dictionary</button>
+          <button id="b-tb" class="bt2 orlborder" onclick="setMode('table')">Table</button>
           <button class="bt2" onclick="checkWellFormed()">Well-formed?</button>
         </div>
+        <div class="cmdbox altc">
+          <b class="htx" onclick="expand(this)">Examples</b>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/aluminium.a', 'application/khi-dictionary')">1</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/elements.khi', 'application/khi-table')">2</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/equations.tex.khi', 'application/khi-expression')">3</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/frontpage.html.khi', 'application/khi-expression')">4</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/fruits.xml.khi', 'application/khi-expression')">5</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/materials.khi', 'application/khi-dictionary')">6</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/primes.khi', 'application/khi-table')">7</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/server-log.khi', 'application/khi-table')">8</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/style.khi', 'application/khi-expression')">9</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/text-blocks.khi', 'application/khi-expression')">10</button>
+          <button class="bt2" onclick="highlightborderx(this); writeExample('examples/words.khi', 'application/khi-table')">11</button>
+        </div>
         <div class="cmdbox">
-          <b>XML/HTML</b>
+          <b class="htx" onclick="expand(this)">XML/HTML</b>
           <a href="https://github.com/khilang/khi.rs/blob/master/src/html/README.md" target="_blank"><button class="bt2">Reference🡥</button></a>
           <button class="bt1" onclick="processHtml()">▶ Preprocess</button>
           <button class="bt2" onclick="htmlExample()">HTML Example</button>
           <button class="bt2" onclick="xmlExample()">XML Example</button>
         </div>
         <div class="cmdbox">
-          <b>LaTeX</b>
+          <b class="htx" onclick="expand(this)">LaTeX</b>
           <a href="https://github.com/khilang/khi.rs/blob/master/src/tex/README.md" target="_blank"><button class="bt2">Reference🡥</button></a>
           <button class="bt1" onclick="processLatex()">▶ Preprocess</button>
           <button class="bt2" onclick="latexExample()">Example</button>
         </div>
       </div>
-      <div id="alert" style="color:white; padding: 0.5em; border:2px dotted grey; border-bottom:0px;" hidden>
+      <div id="alert" style="color:white; font-size: 1em; font-family: monospace; background-color: #222222; padding: 0.5em; border:2px dotted grey; border-bottom:0px;" hidden>
 
       </div>
       <div style="max-width: 1fr; min-width:1fr; width:1fr; height: 1fr; display: grid; grid-template-columns: 2fr 2fr; align-items:stretch;border:2px dotted grey;">
