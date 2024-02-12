@@ -32,15 +32,11 @@
 
       // Paste in a HTML preprocessor example.
       async function htmlExample() {
-        result.setValue(await loadExample("examples/frontpage.html.khi"));
-        result.setOption("mode", "application/khi");
-        result.setOption("theme", "khidark");
+        writeExample("examples/frontpage.html.khi", "application/khi");
       }
 
       async function xmlExample() { // XML example
-        result.setValue(await loadExample("examples/fruits.xml.khi"));
-        result.setOption("mode", "application/khi");
-        result.setOption("theme", "khidark");
+        writeExample("examples/fruits.xml.khi", "application/khi");
       }
 
       // Preprocess UDL to HTML.
@@ -63,9 +59,7 @@
 
       // Paste in a LaTeX preprocessor example.
       async function latexExample() {
-        result.setValue(await loadExample("examples/equations.tex.khi"));
-        result.setOption("mode", "application/khi");
-        result.setOption("theme", "khidark");
+        writeExample("examples/equations.tex.khi", "application/khi");
       }
 
       async function writeExample(path, form) {

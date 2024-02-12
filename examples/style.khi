@@ -1,6 +1,6 @@
 # Style recommendations
 
-## Dictionaries
+## Dictionary
 
 ### Empty dictionary
 {}
@@ -36,7 +36,7 @@
   ]
 }
 
-## Rows
+## Row
 
 ### Empty row
 []
@@ -72,7 +72,7 @@
   ]
 ]
 
-## Lists / Columns
+## List / Column
 
 ### Empty list
 []
@@ -110,7 +110,7 @@
   ]
 ]
 
-## Tables
+## Table
 
 ### Empty table
 []
@@ -165,44 +165,6 @@
   | f
 ]
 
-## Tagged value
-
-### Inline tag
-<A>:a:{b b}:c
-
-### Multiline tag, singleline header
-<A>:a:{b b}:{
-  c c c
-  c c c
-}
-
-### Tag composition
-<A>:b:c: <D>:e: <F>:g:h: <I>:{
-  j j j j j
-}
-
-### Singleline tag expression
-<A> :: a :: b b :: c
-
-### Multiline tag, singleline header expression
-### :: are only on the first line.
-<A> :: a :: b b b b :: [
-  c c c c c
-]
-
-## Expressions
-
-### Inline expression
-{a a a[] {c c c} d d d}
-
-### Multiline expression
-{
-  a a a a {b b b b} c
-  c c c [d d d] e e e e
-  f f f <g>:h:i:j k k
-  k k k k
-}
-
 ## Tuple
 
 ### Inline tuple
@@ -231,4 +193,53 @@ a a a :: {b b b} :: c c
 a a a :: {b b b} :: c :: {
   d d d d d
   d d d
+}
+
+### Inner empty tuple
+<>: <>: <>: <>: <>
+
+### Inner tuple
+<>: <>: <>: <>:{
+  a :: b :: c
+}
+
+## Tagged value
+
+### Inline tag
+<A>:a:{b b}:c
+
+### Multiline tag, singleline header
+<A>:a:{b b}:{
+  c c c
+  c c c
+}
+
+### Tag composition
+<A>:b:c: <D>:e: <F>:g:h: <I>:{
+  j j j j j
+}
+
+### Singleline tag expression
+<A> :: a :: b b :: c
+
+### Multiline tag, singleline header expression
+### :: are only on the first line.
+<A> :: a :: b b b b :: [
+  c c c c c
+]
+
+## Expression
+
+### Short inline expression
+{a a a}
+
+### Long inline expression
+{ a a a[] {c c c} d d d }
+
+### Multiline expression
+{
+  a a a a {b b b b} c
+  c c c [d d d] e e e e
+  f f f <g>:h:i:j k k
+  k k k k
 }
