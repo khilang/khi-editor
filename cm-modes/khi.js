@@ -24,7 +24,6 @@
       CLASS_RIGHT_ANGLE = "right-angle",
       CLASS_BACKSLASH = "backslash",
       CLASS_COLON = "colon",
-      CLASS_DOUBLE_COLON = "double_colon",
       CLASS_SEMICOLON = "semicolon",
       CLASS_BAR = "bar",
       CLASS_TILDE = "tilde",
@@ -46,8 +45,10 @@
       STATE_BRACKET_SECOND = "bracket::second",
       STATE_BRACKET_CLOSE = "bracket::close",
       STATE_EXPRESSION = "expression",
+      STATE_EXPRESSION_TERM = "expression::term",
       STATE_EXPRESSION_SEPARABLE = "expression::separable",
       STATE_EXPRESSION_SEPARATED = "expression::separated",
+      STATE_EXPRESSION_INSEPARABLE = "expression::inseparable",
       STATE_DICTIONARY = "dictionary",
       STATE_FLOW_DICTIONARY_KEY = "flow-dictionary::key",
       STATE_FLOW_DICTIONARY_COLON = "flow-dictionary::colon",
@@ -87,7 +88,7 @@
       STYLE_WORD = "text",
       STYLE_WORD_ARGUMENT = "def",
       STYLE_ATTRIBUTE_VALUE = "attribute",
-      STYLE_ESCAPED = "string",
+      STYLE_ESCAPED = "variable",
       STYLE_BRACKET = "bracket",
       STYLE_PUNCTUATION = "bracket",
       STYLE_BULLET = "bracket",
@@ -147,30 +148,20 @@
         return (
             c === '{' || c === '}' || c === '[' || c === ']' || c === '<' || c === '>' ||
             c === ':' || c === ';' || c === '|' || c === '~' || c === '`' || c === '\\' ||
-            c === '#' || c === 'n'
+            c === '#' || c === 'n' || c === 't'
         );
       }
 
       function classifyCharacter(stream) {
         let c = stream.next();
-        let d;
-        let e;
-        if (c === undefined) {
-          c = null;
-          d = null;
-          e = null;
-        } else {
-          d = stream.next();
-          if (d === undefined) {
-            d = null;
-            stream.backUp(1);
-          } else {
-            stream.backUp(2);
-          }
-        }
-        if (d === '`') { // TODO Fix for backslash
-          return isValidEscape(c) ? CLASS_CHARACTER_ESCAPE_SEQUENCE : CLASS_ERROR;
-        }
+        let d = c !== undefined ? stream.next() : undefined;
+        let e = d !== undefined ? stream.next() : undefined;
+        c = c === undefined ? null : c;
+        d = d === undefined ? null : d;
+        e = e === undefined ? null : e;
+        if (c !== null) stream.backUp(1);
+        if (d !== null) stream.backUp(1);
+        if (e !== null) stream.backUp(1);
         if (c === '{') {
           return CLASS_LEFT_BRACKET;
         } else if (c === '}') {
@@ -190,37 +181,34 @@
             return CLASS_LEFT_ANGLE;
           }
         } else if (c === '>') {
-          return d === '>' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_RIGHT_ANGLE; // Todo: Do repeated escape in .rs again
+          return d === '>' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_RIGHT_ANGLE;
         } else if (c === ':') {
-          if (d === ':') {
-            return CLASS_DOUBLE_COLON;
-          } else {
-            return CLASS_COLON;
-          }
+          return d === ':' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_COLON;
         } else if (c === ';') {
-          return CLASS_SEMICOLON;
+          return d === ';' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_SEMICOLON;
         } else if (c === '|') {
           return d === '|' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_BAR;
         } else if (c === '~') {
-          return CLASS_TILDE;
+          return d === '~' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_TILDE;
         } else if (c === '`') {
-          return CLASS_ERROR;
+          return CLASS_CHARACTER_ESCAPE_SEQUENCE;
         } else if (c === '\\') {
           return CLASS_BACKSLASH;
-        } else if (c === '#') { // TODO: Fix escaped glyph after comment allowed
+        } else if (c === '#') {
           if (d === '#' || d === ' ' || d === '\t' || d === '\n' || d === null) {
             return CLASS_COMMENT_HASH;
-          } else if (
-              d === '{' || d === '}' || d === '[' || d === ']' || d === '<' || d === '>' ||
-              d === ':' || d === ';' || d === '|' || d === '~' || d === '\\'
-          ) {
+          } else if (d === '{' || d === '}' || d === '[' || d === ']' || d === '\\') {
             return CLASS_ERROR;
+          } else if (d === '<' || d === '>' || d === ':' || d === ';' || d === '|' || d === '~') {
+            if (e === d) {
+              return CLASS_COMMENT_HASH;
+            } else {
+              return CLASS_ERROR;
+            }
           } else {
             return CLASS_GLYPH;
           }
-        } else if (c === ' ' || c === '\t' || c === '\n') {
-          return CLASS_WHITESPACE;
-        } else if (c === null) {
+        } else if (c === ' ' || c === '\t' || c === '\n' || c === null) {
           return CLASS_WHITESPACE;
         } else {
           return CLASS_GLYPH;
@@ -228,16 +216,20 @@
       }
 
       function matches_expression(t) {
+        return matches_term(t) || t === CLASS_COLON
+      }
+
+      function matches_term(t) {
         return t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE ||
-        t === CLASS_BACKSLASH || t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET ||
-        t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE ||
-        t === CLASS_DOUBLE_COLON || t === CLASS_DIAMOND
+            t === CLASS_BACKSLASH || t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET ||
+            t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE ||
+            t === CLASS_DIAMOND
       }
 
       return {
         startState: function () {
           return {
-            stack: start_state,
+            stack: structuredClone(start_state),
           };
         },
         token: function (stream, state) {
@@ -248,7 +240,7 @@
               continue;
             }
             let mode = head.mode;
-            /////// console.log(mode, classifyCharacter(stream));
+            //////// console.log(mode, classifyCharacter(stream)); ///////////////
             if (mode === STATE_WHITESPACE) {
               popStack(state);
               stream.eatSpace();
@@ -276,16 +268,18 @@
                 popStack(state);
               }
             } else if (mode === STATE_CHARACTER_ESCAPE_SEQUENCE) {
-              popStack(state);
               stream.next();
-              stream.next();
-              return STYLE_ESCAPED;
+              let d = stream.next();
+              if (isValidEscape(d)) {
+                popStack(state);
+                return STYLE_ESCAPED;
+              } else {
+                pushStack(state, {mode: STATE_ERROR});
+              }
             } else if (mode === STATE_REPEATED_ESCAPE_SEQUENCE) {
               popStack(state);
-              let c = stream.next();
-              while (stream.peek() === c) {
-                stream.next();
-              }
+              stream.next();
+              stream.next();
               return STYLE_ESCAPED;
             } else if (mode === STATE_TRANSCRIPTION_OPEN) {
               // Assume backslash.
@@ -294,7 +288,7 @@
             } else if (mode === STATE_TRANSCRIPTION_DETERMINE) {
               // Expect backslash, escape character or regular character.
               if (stream.sol() || stream.eol()) {
-                pushStack(state, {mode: STATE_ERROR});
+                popStack(state);
                 continue;
               }
               let c = stream.peek();
@@ -319,7 +313,7 @@
                 replaceStack(state, {mode: STATE_TRANSCRIPTION_DETERMINE});
                 return STYLE_TRANSCRIPTION;
               } else if (c === undefined) {
-                pushStack(state, {mode: STATE_ERROR});
+                popStack(state);
                 return STYLE_TRANSCRIPTION;
               } else {
                 stream.next();
@@ -390,9 +384,12 @@
                 }
               } else if (t === CLASS_BACKSLASH) {
                 replaceStack(state, {mode: STATE_BRACKET_SECOND});
-                pushStack(state, {mode: STATE_TRANSCRIPTION_OPEN}); // TODO: Determine by lookahead?
-              } else if (t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DOUBLE_COLON || t === CLASS_DIAMOND) {
-                replaceStack(state, {mode: STATE_BRACKET_CLOSE}); // TODO ? right angle hash Correct ?
+                pushStack(state, {mode: STATE_TRANSCRIPTION_OPEN});
+              } else if (t === CLASS_LEFT_ANGLE_HASH) {
+                replaceStack(state, {mode: STATE_BRACKET_SECOND});
+                pushStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
+              } else if (t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_COLON || t === CLASS_DIAMOND) {
+                replaceStack(state, {mode: STATE_BRACKET_CLOSE});
                 pushStack(state, {mode: STATE_EXPRESSION});
               } else if (t === CLASS_RIGHT_ANGLE) {
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
@@ -404,13 +401,15 @@
               // Skip whitespace. Expect term, colon, otherwise end.
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
-                pushStack(state, {mode: STATE_WHITESPACE});
-              } else if (t === CLASS_COMMENT_HASH) {
-                pushStack(state, {mode: STATE_COMMENT});
-              } else if (matches_expression(t)) {
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
-                pushStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
-              } else if (t === CLASS_COLON) { // TODO: Colon should be directly after key
+                pushStack(state, {mode: STATE_EXPRESSION_TERM});
+              } else if (t === CLASS_COMMENT_HASH) {
+                replaceStack(state, {mode: STATE_BRACKET_CLOSE});
+                pushStack(state, {mode: STATE_EXPRESSION_TERM});
+              } else if (matches_term(t)) {
+                replaceStack(state, {mode: STATE_BRACKET_CLOSE});
+                pushStack(state, {mode: STATE_EXPRESSION_TERM});
+              } else if (t === CLASS_COLON) {
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
                 pushStack(state, {mode: STATE_FLOW_DICTIONARY_COLON});
               } else {
@@ -427,7 +426,7 @@
                 pushStack(state, {mode: STATE_ERROR});
               }
             } else if (mode === STATE_EXPRESSION) {
-              // Skip whitespace. Expect term, otherwise end.
+              // Skip whitespace. Expect term or colon, otherwise end.
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
                 pushStack(state, {mode: STATE_WHITESPACE});
@@ -437,22 +436,21 @@
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
                   t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
               ) {
-                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
-              } else if (t === CLASS_DOUBLE_COLON) {
+                replaceStack(state, {mode: STATE_EXPRESSION_TERM});
+              } else if (t === CLASS_COLON) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
-                stream.next();
                 stream.next();
                 return STYLE_DC;
               } else {
                 popStack(state);
               }
-            } else if (mode === STATE_EXPRESSION_SEPARABLE) {
+            } else if (mode === STATE_EXPRESSION_TERM) {
               //
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
-                pushStack(state, {mode: STATE_WHITESPACE});
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
               } else if (t === CLASS_COMMENT_HASH) {
-                pushStack(state, {mode: STATE_COMMENT});
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
               } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
                 pushStack(state, {mode: STATE_WORD, style: STYLE_WORD});
               } else if (t === CLASS_BACKSLASH) {
@@ -470,16 +468,14 @@
               } else if (t === CLASS_TILDE) {
                 stream.next();
                 return STYLE_OPERATOR;
-              } else if (t === CLASS_DOUBLE_COLON) {
+              } else if (t === CLASS_COLON && stream.sol()) { // TODO: Maybe better way?
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
-                stream.next();
                 stream.next();
                 return STYLE_DC;
               } else {
                 popStack(state);
               }
-            } else if (mode === STATE_EXPRESSION_SEPARATED) {
-              // Skip whitespace. Expect term.
+            } else if (mode === STATE_EXPRESSION_SEPARABLE) {
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
                 pushStack(state, {mode: STATE_WHITESPACE});
@@ -489,7 +485,36 @@
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
                   t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
               ) {
-                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
+                replaceStack(state, {mode: STATE_EXPRESSION_TERM});
+              } else if (t === CLASS_COLON) { // TODO: Warn on tuple colon not on first line
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
+                stream.next();
+                return STYLE_DC;
+              } else {
+                popStack(state);
+              }
+            } else if (mode === STATE_EXPRESSION_SEPARATED) {
+              // Expect whitespace. Ensure there is whitespace.
+              let t = classifyCharacter(stream);
+              if (t === CLASS_WHITESPACE || stream.sol()) {
+                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
+              } else if (t === CLASS_COMMENT_HASH) {
+                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
+              } else {
+                pushStack(state, {mode: STATE_ERROR});
+              }
+            } else if (mode === STATE_EXPRESSION_INSEPARABLE) {
+              // Skip whitespace. Ensure there is a term next.
+              let t = classifyCharacter(stream);
+              if (t === CLASS_WHITESPACE) {
+                pushStack(state, {mode: STATE_WHITESPACE});
+              } else if (t === CLASS_COMMENT_HASH) {
+                pushStack(state, {mode: STATE_COMMENT});
+              } else if (
+                  t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
+              ) {
+                replaceStack(state, {mode: STATE_EXPRESSION_TERM});
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
