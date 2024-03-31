@@ -21,6 +21,7 @@
       CLASS_LEFT_ANGLE = "left-angle",
       CLASS_LEFT_ANGLE_HASH = "left-angle-hash",
       CLASS_DIAMOND = "diamond",
+      CLASS_COLON_OPERATOR = "colon-operator",
       CLASS_RIGHT_ANGLE = "right-angle",
       CLASS_BACKSLASH = "backslash",
       CLASS_COLON = "colon",
@@ -78,7 +79,8 @@
       STATE_TAG_CLOSE = "tag::close",
       STATE_ARGUMENTS_COLON = "arguments::colon",
       STATE_ARGUMENTS_ARGUMENT = "arguments::argument",
-      STATE_ARGUMENTS_COMPOSE = "arguments::compose",
+      STATE_COMPOSE = "compose",
+      STATE_COMPOSABLE = "composable",
       STATE_ERROR = "error";
 
   const
@@ -175,6 +177,12 @@
             return CLASS_REPEATED_ESCAPE_SEQUENCE;
           } else if (d === '>') {
             return CLASS_DIAMOND;
+          } else if (d === ':') {
+            if (e === '>') {
+              return CLASS_COLON_OPERATOR;
+            } else {
+              return CLASS_ERROR;
+            }
           } else if (d === '#') {
             return CLASS_LEFT_ANGLE_HASH;
           } else {
@@ -240,7 +248,7 @@
               continue;
             }
             let mode = head.mode;
-            //////// console.log(mode, classifyCharacter(stream)); ///////////////
+            console.log(mode, classifyCharacter(stream)); ///////////////
             if (mode === STATE_WHITESPACE) {
               popStack(state);
               stream.eatSpace();
@@ -462,8 +470,10 @@
               } else if (t === CLASS_LEFT_SQUARE) {
                 pushStack(state, {mode: STATE_SQUARE_OPEN});
               } else if (t === CLASS_DIAMOND) {
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE}); // TODO: Make this less confusing
                 pushStack(state, {mode: STATE_TUPLE})
               } else if (t === CLASS_LEFT_ANGLE) {
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 pushStack(state, {mode: STATE_TAG_OPEN, argument: false});
               } else if (t === CLASS_TILDE) {
                 stream.next();
@@ -543,7 +553,7 @@
               } else if (t === CLASS_COMMENT_HASH) {
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-                replaceStack(state, {mode: STATE_FLOW_DICTIONARY_COLON});
+                replaceStack(state, {mode: STATE_FLOW_DICTIONARY_COLON}); // TODO No space between key & colon
                 pushStack(state, {mode: STATE_WORD, style: STYLE_KEY});
               } else if (t === CLASS_BACKSLASH) { //TODO Block
                 replaceStack(state, {mode: STATE_FLOW_DICTIONARY_COLON});
@@ -845,7 +855,8 @@
               let t = classifyCharacter(stream);
               if (t === CLASS_DIAMOND) {
                 if (!head.argument) {
-                  replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: false});
+                  replaceStack(state, {mode: STATE_COMPOSE});
+                  pushStack(state, {mode: STATE_ARGUMENTS_COLON, macro: false});
                 }
                 stream.next(); stream.next();
                 return STYLE_TAG;
@@ -937,7 +948,8 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (t === CLASS_RIGHT_ANGLE) {
                 if (!head.argument) {
-                  replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
+                  replaceStack(state, {mode: STATE_COMPOSE});
+                  pushStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
                 } else {
                   popStack(state);
                 }
@@ -981,22 +993,44 @@
               } else if (t === CLASS_DIAMOND) {
                 replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
                 pushStack(state, {mode: STATE_TUPLE, argument: true});
-              } else if (t === CLASS_WHITESPACE || t === CLASS_COMMENT_HASH) {
-                replaceStack(state, {mode: STATE_ARGUMENTS_COMPOSE});
               } else {
                 replaceStack(state, {mode: STATE_ERROR});
               }
-            } else if (mode === STATE_ARGUMENTS_COMPOSE) {
+            } else if (mode === STATE_COMPOSE) {
               // Skip whitespace. Expect tag or tuple.
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
                 pushStack(state, {mode: STATE_WHITESPACE});
               } else if (t === CLASS_COMMENT_HASH) {
                 pushStack(state, {mode: STATE_COMMENT});
+              } else if (t === CLASS_COLON_OPERATOR) {
+                replaceStack(state, {mode: STATE_COMPOSABLE});
+                stream.next(); stream.next(); stream.next();
+                return STYLE_OPERATOR;
+              } else {
+                popStack(state);
+              }
+            } else if (mode === STATE_COMPOSABLE) {
+              // Skip whitespace. Expect tag or tuple.
+              let t = classifyCharacter(stream);
+              if (t === CLASS_WHITESPACE) {
+                pushStack(state, {mode: STATE_WHITESPACE});
+              } else if (t === CLASS_COMMENT_HASH) {
+                pushStack(state, {mode: STATE_COMMENT});
+              } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
+                replaceStack(state, {mode: STATE_WORD, style: STYLE_WORD_ARGUMENT});
+              } else if (t === CLASS_BACKSLASH) {
+                replaceStack(state, {mode: STATE_TRANSCRIPTION_OPEN});
+              } else if (t === CLASS_LEFT_ANGLE_HASH) {
+                replaceStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
+              } else if (t === CLASS_LEFT_BRACKET) {
+                replaceStack(state, {mode: STATE_BRACKET_OPEN});
+              } else if (t === CLASS_LEFT_SQUARE) {
+                replaceStack(state, {mode: STATE_SQUARE_OPEN});
               } else if (t === CLASS_DIAMOND) {
-                replaceStack(state, {mode: STATE_TUPLE});
+                replaceStack(state, {mode: STATE_TUPLE, argument: false});
               } else if (t === CLASS_LEFT_ANGLE) {
-                replaceStack(state, {mode: STATE_TAG_OPEN});
+                replaceStack(state, {mode: STATE_TAG_OPEN, argument: false});
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
