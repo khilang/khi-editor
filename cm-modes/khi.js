@@ -27,6 +27,7 @@
       CLASS_COLON = "colon",
       CLASS_SEMICOLON = "semicolon",
       CLASS_BAR = "bar",
+      CLASS_AMPERSAND = "ampersand",
       CLASS_TILDE = "tilde",
       CLASS_ERROR = "error";
 
@@ -48,8 +49,8 @@
       STATE_EXPRESSION = "expression",
       STATE_EXPRESSION_TERM = "expression::term",
       STATE_EXPRESSION_SEPARABLE = "expression::separable",
-      STATE_EXPRESSION_SEPARATED = "expression::separated",
       STATE_EXPRESSION_INSEPARABLE = "expression::inseparable",
+      STATE_EXPRESSION_TAG_EXPRESSABLE = "expression::tag-expressable",
       STATE_DICTIONARY = "dictionary",
       STATE_FLOW_DICTIONARY_KEY = "flow-dictionary::key",
       STATE_FLOW_DICTIONARY_COLON = "flow-dictionary::colon",
@@ -95,7 +96,7 @@
       STYLE_PUNCTUATION = "bracket",
       STYLE_BULLET = "bracket",
       STYLE_OPERATOR = "builtin",
-      STYLE_DC = "bracket",
+      STYLE_DC = "attribute",
       STYLE_KEY = "keyword",
       STYLE_ATTRIBUTE = "attribute",
       STYLE_TAG = "tag",
@@ -149,8 +150,8 @@
       function isValidEscape(c) {
         return (
             c === '{' || c === '}' || c === '[' || c === ']' || c === '<' || c === '>' ||
-            c === ':' || c === ';' || c === '|' || c === '~' || c === '`' || c === '\\' ||
-            c === '#' || c === 'n' || c === 't'
+            c === ':' || c === ';' || c === '|' || c === '&' || c === '~' || c === '`' ||
+            c === '\\' || c === '#' || c === 'n' || c === 't'
         );
       }
 
@@ -196,6 +197,8 @@
           return d === ';' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_SEMICOLON;
         } else if (c === '|') {
           return d === '|' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_BAR;
+        } else if (c === '&') {
+          return d === '&' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_AMPERSAND;
         } else if (c === '~') {
           return d === '~' ? CLASS_REPEATED_ESCAPE_SEQUENCE : CLASS_TILDE;
         } else if (c === '`') {
@@ -207,7 +210,7 @@
             return CLASS_COMMENT_HASH;
           } else if (d === '{' || d === '}' || d === '[' || d === ']' || d === '\\') {
             return CLASS_ERROR;
-          } else if (d === '<' || d === '>' || d === ':' || d === ';' || d === '|' || d === '~') {
+          } else if (d === '<' || d === '>' || d === ':' || d === ';' || d === '|' || d === '&') {
             if (e === d) {
               return CLASS_COMMENT_HASH;
             } else {
@@ -224,13 +227,13 @@
       }
 
       function matches_expression(t) {
-        return matches_term(t) || t === CLASS_COLON
+        return matches_term(t) || t === CLASS_TILDE
       }
 
       function matches_term(t) {
         return t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE ||
             t === CLASS_BACKSLASH || t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET ||
-            t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE ||
+            t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND ||
             t === CLASS_DIAMOND
       }
 
@@ -248,7 +251,7 @@
               continue;
             }
             let mode = head.mode;
-            console.log(mode, classifyCharacter(stream)); ///////////////
+            /////////////// console.log(mode, classifyCharacter(stream)); ///////////////
             if (mode === STATE_WHITESPACE) {
               popStack(state);
               stream.eatSpace();
@@ -396,7 +399,7 @@
               } else if (t === CLASS_LEFT_ANGLE_HASH) {
                 replaceStack(state, {mode: STATE_BRACKET_SECOND});
                 pushStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
-              } else if (t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_COLON || t === CLASS_DIAMOND) {
+              } else if (t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND || t === CLASS_TILDE || t === CLASS_DIAMOND) {
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
                 pushStack(state, {mode: STATE_EXPRESSION});
               } else if (t === CLASS_RIGHT_ANGLE) {
@@ -415,7 +418,7 @@
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
                 pushStack(state, {mode: STATE_EXPRESSION_TERM});
               } else if (matches_term(t)) {
-                replaceStack(state, {mode: STATE_BRACKET_CLOSE});
+                replaceStack(state, {mode: STATE_BRACKET_CLOSE}); // todo Tilde somwhere
                 pushStack(state, {mode: STATE_EXPRESSION_TERM});
               } else if (t === CLASS_COLON) {
                 replaceStack(state, {mode: STATE_BRACKET_CLOSE});
@@ -442,15 +445,29 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
-              } else if (t === CLASS_COLON) {
-                replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
+              } else if (t === CLASS_LEFT_ANGLE) {
+                replaceStack(state, {mode: STATE_EXPRESSION_TAG_EXPRESSABLE});
+                pushStack(state, {mode: STATE_TAG_OPEN, argument: true});
+              } else if (t === CLASS_TILDE) {
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 stream.next();
                 return STYLE_DC;
               } else {
                 popStack(state);
+              }
+            } else if (mode === STATE_EXPRESSION_TAG_EXPRESSABLE) {
+              if (stream.match(/:\s+/)) {
+                replaceStack(state, {mode: STATE_EXPRESSION_TERM});
+                return STYLE_DC;
+              } else if (stream.match(/:/, false)) {
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
+                pushStack(state, {mode: STATE_COMPOSE});
+                pushStack(state, {mode: STATE_ARGUMENTS_COLON});
+              } else {
+                replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
               }
             } else if (mode === STATE_EXPRESSION_TERM) {
               //
@@ -475,11 +492,11 @@
               } else if (t === CLASS_LEFT_ANGLE) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 pushStack(state, {mode: STATE_TAG_OPEN, argument: false});
-              } else if (t === CLASS_TILDE) {
+              } else if (t === CLASS_AMPERSAND) {
                 stream.next();
                 return STYLE_OPERATOR;
-              } else if (t === CLASS_COLON && stream.sol()) { // TODO: Maybe better way?
-                replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
+              } else if (t === CLASS_TILDE) { // TODO: Maybe better way?
+                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
                 stream.next();
                 return STYLE_DC;
               } else {
@@ -493,25 +510,15 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
-              } else if (t === CLASS_COLON) { // TODO: Warn on tuple colon not on first line
-                replaceStack(state, {mode: STATE_EXPRESSION_SEPARATED});
+              } else if (t === CLASS_TILDE) { // TODO: Warn on tuple colon not on first line
+                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
                 stream.next();
                 return STYLE_DC;
               } else {
                 popStack(state);
-              }
-            } else if (mode === STATE_EXPRESSION_SEPARATED) {
-              // Expect whitespace. Ensure there is whitespace.
-              let t = classifyCharacter(stream);
-              if (t === CLASS_WHITESPACE || stream.sol()) {
-                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
-              } else if (t === CLASS_COMMENT_HASH) {
-                replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
-              } else {
-                pushStack(state, {mode: STATE_ERROR});
               }
             } else if (mode === STATE_EXPRESSION_INSEPARABLE) {
               // Skip whitespace. Ensure there is a term next.
@@ -522,7 +529,7 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
               } else {
@@ -993,6 +1000,10 @@
               } else if (t === CLASS_DIAMOND) {
                 replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
                 pushStack(state, {mode: STATE_TUPLE, argument: true});
+              } else if (t === CLASS_AMPERSAND) {
+                replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
+                stream.next();
+                return STYLE_OPERATOR;
               } else {
                 replaceStack(state, {mode: STATE_ERROR});
               }
