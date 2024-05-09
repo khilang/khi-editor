@@ -21,7 +21,6 @@
       CLASS_LEFT_ANGLE = "left-angle",
       CLASS_LEFT_ANGLE_HASH = "left-angle-hash",
       CLASS_DIAMOND = "diamond",
-      CLASS_COLON_OPERATOR = "colon-operator",
       CLASS_RIGHT_ANGLE = "right-angle",
       CLASS_BACKSLASH = "backslash",
       CLASS_COLON = "colon",
@@ -95,13 +94,13 @@
       STYLE_BRACKET = "bracket",
       STYLE_PUNCTUATION = "bracket",
       STYLE_BULLET = "bracket",
-      STYLE_OPERATOR = "builtin",
-      STYLE_DC = "attribute",
+      STYLE_TUPLE = "variable-2",
+      STYLE_CONTRACTION = "variable-2",
+      STYLE_COMPOSITION = "bracket",
       STYLE_KEY = "keyword",
       STYLE_ATTRIBUTE = "attribute",
       STYLE_TAG = "tag",
       STYLE_ARGUMENT_COLON = "tag",
-      STYLE_CONSTRUCTOR = "bracket",
       STYLE_MACRO = "type",
       STYLE_ERROR = "error";
 
@@ -178,12 +177,6 @@
             return CLASS_REPEATED_ESCAPE_SEQUENCE;
           } else if (d === '>') {
             return CLASS_DIAMOND;
-          } else if (d === ':') {
-            if (e === '>') {
-              return CLASS_COLON_OPERATOR;
-            } else {
-              return CLASS_ERROR;
-            }
           } else if (d === '#') {
             return CLASS_LEFT_ANGLE_HASH;
           } else {
@@ -227,13 +220,13 @@
       }
 
       function matches_expression(t) {
-        return matches_term(t) || t === CLASS_TILDE
+        return matches_term(t) || t === CLASS_AMPERSAND
       }
 
       function matches_term(t) {
         return t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE ||
             t === CLASS_BACKSLASH || t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET ||
-            t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND ||
+            t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE ||
             t === CLASS_DIAMOND
       }
 
@@ -445,23 +438,26 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_TILDE
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
               } else if (t === CLASS_LEFT_ANGLE) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TAG_EXPRESSABLE});
-                pushStack(state, {mode: STATE_TAG_OPEN, argument: true});
-              } else if (t === CLASS_TILDE) {
+                pushStack(state, {mode: STATE_TAG_OPEN, argument: true, style: stream.match(/<[\sA-Za-z0-9]*>:\s+/, false) ? STYLE_TUPLE : STYLE_TAG});
+              } else if (t === CLASS_DIAMOND) {
+                replaceStack(state, {mode: STATE_EXPRESSION_TAG_EXPRESSABLE});
+                pushStack(state, {mode: STATE_TUPLE, argument: true, style: stream.match(/<[\sA-Za-z0-9]*>:\s+/, false) ? STYLE_TUPLE : STYLE_TAG});
+              } else if (t === CLASS_AMPERSAND) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 stream.next();
-                return STYLE_DC;
+                return STYLE_TUPLE;
               } else {
                 popStack(state);
               }
             } else if (mode === STATE_EXPRESSION_TAG_EXPRESSABLE) {
               if (stream.match(/:\s+/)) {
-                replaceStack(state, {mode: STATE_EXPRESSION_TERM});
-                return STYLE_DC;
+                replaceStack(state, {mode: STATE_EXPRESSION});
+                return STYLE_TUPLE;
               } else if (stream.match(/:/, false)) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 pushStack(state, {mode: STATE_COMPOSE});
@@ -488,17 +484,17 @@
                 pushStack(state, {mode: STATE_SQUARE_OPEN});
               } else if (t === CLASS_DIAMOND) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE}); // TODO: Make this less confusing
-                pushStack(state, {mode: STATE_TUPLE})
+                pushStack(state, {mode: STATE_TUPLE, argument: false})
               } else if (t === CLASS_LEFT_ANGLE) {
                 replaceStack(state, {mode: STATE_EXPRESSION_SEPARABLE});
                 pushStack(state, {mode: STATE_TAG_OPEN, argument: false});
-              } else if (t === CLASS_AMPERSAND) {
+              } else if (t === CLASS_TILDE) {
                 stream.next();
-                return STYLE_OPERATOR;
-              } else if (t === CLASS_TILDE) { // TODO: Maybe better way?
+                return STYLE_CONTRACTION;
+              } else if (t === CLASS_AMPERSAND) { // TODO: Maybe better way?
                 replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
                 stream.next();
-                return STYLE_DC;
+                return STYLE_TUPLE;
               } else {
                 popStack(state);
               }
@@ -510,13 +506,13 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
-              } else if (t === CLASS_TILDE) { // TODO: Warn on tuple colon not on first line
+              } else if (t === CLASS_AMPERSAND) { // TODO: Warn on tuple colon not on first line
                 replaceStack(state, {mode: STATE_EXPRESSION_INSEPARABLE});
                 stream.next();
-                return STYLE_DC;
+                return STYLE_TUPLE;
               } else {
                 popStack(state);
               }
@@ -529,7 +525,7 @@
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (
                   t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE || t === CLASS_BACKSLASH ||
-                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_AMPERSAND || t === CLASS_DIAMOND
+                  t === CLASS_LEFT_ANGLE_HASH || t === CLASS_LEFT_BRACKET || t === CLASS_LEFT_SQUARE || t === CLASS_LEFT_ANGLE || t === CLASS_TILDE || t === CLASS_DIAMOND
               ) {
                 replaceStack(state, {mode: STATE_EXPRESSION_TERM});
               } else {
@@ -859,31 +855,35 @@
                 pushStack(state, {mode: STATE_ERROR});
               }
             } else if (mode === STATE_TUPLE) {
+              if (head.style === undefined) head.style = STYLE_TAG;
               let t = classifyCharacter(stream);
               if (t === CLASS_DIAMOND) {
                 if (!head.argument) {
                   replaceStack(state, {mode: STATE_COMPOSE});
-                  pushStack(state, {mode: STATE_ARGUMENTS_COLON, macro: false});
+                  pushStack(state, {mode: STATE_ARGUMENTS_COLON});
+                } else {
+                  popStack(state);
                 }
                 stream.next(); stream.next();
-                return STYLE_TAG;
+                return head.style;
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
             } else if (mode === STATE_TAG_OPEN) {
               // Expect left angle.
+              if (head.style === undefined) head.style = STYLE_TAG;
               let t = classifyCharacter(stream);
               if (t === CLASS_LEFT_ANGLE) {
                 let macro = false;
                 if (stream.match(/<[a-zA-Z0-9_-]*!\s+/, false) || stream.match(/<[a-zA-Z0-9_-]*!>/, false)) { // TODO: Improve this part. Highlights tags ending in ! differently.
                   macro = true;
                 }
-                replaceStack(state, {mode: STATE_TAG_NAME, macro: macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_NAME, macro: macro, argument: head.argument, style: head.style});
                 stream.next();
                 if (stream.eol()) {
                   pushStack(state, {mode: STATE_ERROR});
                 }
-                return macro ? STYLE_MACRO : STYLE_TAG;
+                return macro ? STYLE_MACRO : head.style;
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
@@ -891,8 +891,8 @@
               // Expect name.
               let t = classifyCharacter(stream);
               if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
-                pushStack(state, {mode: STATE_WORD, style: head.macro ? STYLE_MACRO : STYLE_TAG});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
+                pushStack(state, {mode: STATE_WORD, style: head.macro ? STYLE_MACRO : head.style});
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
@@ -904,44 +904,44 @@
               } else if (t === CLASS_COMMENT_HASH) {
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-                replaceStack(state, {mode: STATE_TAG_COLON, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_COLON, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_WORD, style: STYLE_ATTRIBUTE});
               } else {
-                replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument, style: head.style});
               }
             } else if (mode === STATE_TAG_COLON) {
               // Expect whitespace or colon, otherwise end.
               let t = classifyCharacter(stream);
               if (t === CLASS_WHITESPACE) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_WHITESPACE});
               } else if (t === CLASS_COMMENT_HASH) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_COMMENT});
               } else if (t === CLASS_COLON) {
-                replaceStack(state, {mode: STATE_TAG_VALUE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_VALUE, macro: head.macro, argument: head.argument, style: head.style});
                 stream.next();
                 return head.macro ? STYLE_ATTRIBUTE : STYLE_ATTRIBUTE;
               } else {
-                replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_CLOSE, macro: head.macro, argument: head.argument, style: head.style});
               }
             } else if (mode === STATE_TAG_VALUE) {
               // Expect attribute value.
               let t = classifyCharacter(stream);
               if (t === CLASS_GLYPH || t === CLASS_CHARACTER_ESCAPE_SEQUENCE || t === CLASS_REPEATED_ESCAPE_SEQUENCE) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_WORD, style: STYLE_ATTRIBUTE_VALUE});
               } else if (t === CLASS_BACKSLASH) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_TRANSCRIPTION_OPEN});
               } else if (t === CLASS_LEFT_ANGLE_HASH) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_TEXT_BLOCK_OPEN});
               } else if (t === CLASS_LEFT_BRACKET) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_BRACKET_OPEN});
               } else if (t === CLASS_LEFT_SQUARE) {
-                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument});
+                replaceStack(state, {mode: STATE_TAG_ATTRIBUTE, macro: head.macro, argument: head.argument, style: head.style});
                 pushStack(state, {mode: STATE_SQUARE_OPEN});
               } else {
                 pushStack(state, {mode: STATE_ERROR});
@@ -961,7 +961,7 @@
                   popStack(state);
                 }
                 stream.next();
-                return head.macro ? STYLE_MACRO : STYLE_TAG;
+                return head.macro ? STYLE_MACRO : head.style;
               } else {
                 pushStack(state, {mode: STATE_ERROR});
               }
@@ -1003,7 +1003,7 @@
               } else if (t === CLASS_AMPERSAND) {
                 replaceStack(state, {mode: STATE_ARGUMENTS_COLON, macro: head.macro});
                 stream.next();
-                return STYLE_OPERATOR;
+                return STYLE_COMPOSITION;
               } else {
                 replaceStack(state, {mode: STATE_ERROR});
               }
@@ -1014,10 +1014,6 @@
                 pushStack(state, {mode: STATE_WHITESPACE});
               } else if (t === CLASS_COMMENT_HASH) {
                 pushStack(state, {mode: STATE_COMMENT});
-              } else if (t === CLASS_COLON_OPERATOR) {
-                replaceStack(state, {mode: STATE_COMPOSABLE});
-                stream.next(); stream.next(); stream.next();
-                return STYLE_OPERATOR;
               } else {
                 popStack(state);
               }
