@@ -95,7 +95,7 @@
       STYLE_PUNCTUATION = "bracket",
       STYLE_BULLET = "bracket",
       STYLE_TUPLE = "variable-2",
-      STYLE_CONTRACTION = "variable-2",
+      STYLE_CONTRACTION = "builtin",
       STYLE_COMPOSITION = "bracket",
       STYLE_KEY = "keyword",
       STYLE_ATTRIBUTE = "attribute",

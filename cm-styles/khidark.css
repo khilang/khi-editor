@@ -21,9 +21,10 @@
 .cm-s-khidark span.cm-error { background: #f92672; color: #f8f8f0; }
 .cm-s-khidark span.cm-bracket { color: #ffc993; }
 .cm-s-khidark span.cm-keyword { color: #ff597d; }
-.cm-s-khidark span.cm-builtin { color: #00eaff; }
+.cm-s-khidark span.cm-builtin { color: #3cd5ff; }
 .cm-s-khidark span.cm-string { color: #82ce66; }
 .cm-s-khidark span.cm-def { color: #c7a7fd; }
 .cm-s-khidark span.cm-type { color: #ff7f41; }
-.cm-s-khidark span.cm-variable-2 { color: #2b96d0; }
+/*.cm-s-khidark span.cm-variable-2 { color: #2b96d0; }*/
+.cm-s-khidark span.cm-variable-2 { color: #8395ea; }
 .cm-s-khidark span.cm-variable { color: #9b9b9b; }
